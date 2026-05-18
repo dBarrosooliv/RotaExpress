@@ -20,6 +20,43 @@ app.use(cors()); // Permite que o Front (localhost:5173) chame essa API
 app.use(express.json()); // Permite receber JSON no body das requisições
 
 // ==========================================
+// ROTAS ADMIN
+// ==========================================
+ 
+// DELETE /api/products/:id — Remove um produto do MongoDB
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    const deleted = await Product.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Produto não encontrado.' });
+    }
+    res.json({ message: `✅ Produto "${deleted.title}" deletado com sucesso.` });
+  } catch (error) {
+    console.error('Erro ao deletar produto:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+ 
+// PATCH /api/products/:id — Atualiza campos de um produto (ex: stock)
+app.patch('/api/products/:id', async (req, res) => {
+  try {
+    const updates = req.body; // ex: { stock: 10 }
+    const updated = await Product.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true } // retorna o documento já atualizado
+    );
+    if (!updated) {
+      return res.status(404).json({ error: 'Produto não encontrado.' });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error('Erro ao atualizar produto:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
 // CONEXÃO COM O MONGODB
 // ==========================================
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/ecommerce';
@@ -342,7 +379,7 @@ app.get('/api/recommendations/:userId', async (req, res) => {
 });
 
 // ==========================================
-// 4. INICIAR O SERVIDOR
+// INICIAR O SERVIDOR
 // ==========================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

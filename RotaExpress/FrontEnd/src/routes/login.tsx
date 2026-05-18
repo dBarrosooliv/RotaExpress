@@ -18,6 +18,9 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+const ADMIN_EMAIL = "admin@rotaexpress.com";
+const ADMIN_PASSWORD = "admin@2025";
+
 function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("alex@exemplo.com");
@@ -29,6 +32,14 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      sessionStorage.setItem("admin_auth", "true");
+      navigate({ to:"/admin" });
+      setLoading(false);
+      return;
+    }
+
     try {
       // Backed by PostgreSQL in the real system — see services/api.ts
       await authApi.login(email, password);
