@@ -1,0 +1,41 @@
+version: '3.9'
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: rota_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db #persistir os dados do mongodb
+    
+  backend:
+    build:
+      context: ./EcommerceBE
+      dockerfile: Dockerfile
+    container_name: rota_backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./EcommerceBE/.env
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/ecommerce
+    depends_on:
+      - mongo
+    volumes:
+      - ./EcommerceBE:/app #montar o código do backend no container
+      - /app/node_modules #evitar conflitos de node_modules entre host e container
+    
+  frontend:
+    image: node:22-alpine
+    container_name: rota_frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./FrontEnd:/app #montar o código do frontend no container
+      - /app/node_modules #evitar conflitos de node_modules entre host e container
+
+volumes:
+  mongo_data:
