@@ -35,7 +35,10 @@ export function ProductCard({
         {recommendationReason && (
           <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-[oklch(0.7_0.18_150/40%)] bg-[oklch(0.3_0.18_150/55%)] px-2.5 py-1 text-[11px] font-medium text-[oklch(0.95_0.1_150)] backdrop-blur-md">
             <Sparkles className="h-3 w-3" />
-            Recomendado
+            {recommendationReason.includes("🔥") ? "Popular" :
+            recommendationReason.includes("👥") ? "Você pode gostar" :
+            recommendationReason.includes("🏷️") ? "Da mesma categoria" :
+            "Compra ai"}
           </div>
         )}
         <div className="absolute right-3 top-3 rounded-full border border-glass-border bg-glass px-2 py-1 text-[11px] text-foreground/90 backdrop-blur-md">
@@ -52,12 +55,6 @@ export function ProductCard({
             ${(product.price || 0).toFixed(2)} 
           </span>
         </div>
-
-        {recommendationReason && (
-          <p className="text-xs italic text-muted-foreground">
-            “{recommendationReason}”
-          </p>
-        )}
 
         {/* Dynamic attributes — MongoDB documents can vary per product. */}
         <ul className="flex flex-wrap gap-1.5">

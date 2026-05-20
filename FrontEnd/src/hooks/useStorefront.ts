@@ -3,6 +3,8 @@ import {
   authApi,
   productsApi,
   recommendationsApi,
+  popularApi,
+  categoryApi,
   cartApi,
 } from "@/services/api";
 import type {
@@ -12,68 +14,74 @@ import type {
   UserSession,
 } from "@/services/mockData";
 
-/**
- * Single hook orchestrating data from all three databases.
- * In production this becomes three independent React Query hooks
- * (`useProducts`, `useRecommendations`, `useSession`) — the split
- * between data sources stays the same.
- */
 export function useStorefront() {
-  // MongoDB: product catalog
+  // MongoDB: catálogo
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
 
-  // Neo4j: recommendations
+  // MongoDB: populares (+200 compras)
+  const [popular, setPopular] = useState<Recommendation[]>([]);
+  const [popularLoading, setPopularLoading] = useState(true);
+
+  // Neo4j: "outros também compraram" (por usuário)
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
 
-  // PostgreSQL: session + cart
+  // Neo4j + MongoDB: por categoria (ativado ao clicar num produto)
+  const [categoryRecs, setCategoryRecs] = useState<Recommendation[]>([]);
+  const [categoryRecsLoading, setCategoryRecsLoading] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
+  // PostgreSQL: sessão + carrinho
   const [session, setSession] = useState<UserSession | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  // 1. SEU EFFECT ATUAL: Mantém o usuário logado ao dar F5
-    useEffect(() => {
-      const stored = localStorage.getItem("polyglot_session");
-      if (stored) {
-        try {
-          setSession(JSON.parse(stored));
-        } catch {
-          localStorage.removeItem("polyglot_session");
-        }
-      }
-    }, []);
-
-    // 2. NOVO EFFECT: Carrega a vitrine (Mongo) e as Recomendações (Neo4j)
-    useEffect(() => {
-      // Busca o catálogo geral do MongoDB (roda sempre)
-      productsApi.list().then((data) => {
-        setProducts(data);
-        setProductsLoading(false);
-      });
-
-      // Se o seu effect de cima achar um usuário logado, este aqui roda e busca no Neo4j!
-      if (session?.userId) {
-        setRecommendationsLoading(true);
-        recommendationsApi.forUser(session.userId).then((data) => {
-          setRecommendations(data);
-          setRecommendationsLoading(false);
-        });
-      } else {
-        // Se não tiver ninguém logado, limpa a aba de recomendados
-        setRecommendations([]);
-        setRecommendationsLoading(false);
-      }
-    }, [session?.userId]); // Fica de olho no ID do usuário. Se mudar (Login/Logout), ele atualiza os dados.
-
+  // Restaura sessão ao recarregar a página
   useEffect(() => {
-    // Fire both reads in parallel — they hit different services.
+    const stored = localStorage.getItem("polyglot_session");
+    if (stored) {
+      try {
+        setSession(JSON.parse(stored));
+      } catch {
+        localStorage.removeItem("polyglot_session");
+      }
+    }
+  }, []);
+
+  // Carrega catálogo (MongoDB) e populares — sempre, independente de login
+  useEffect(() => {
     productsApi.list().then((data) => {
       setProducts(data);
       setProductsLoading(false);
     });
-    recommendationsApi.forUser("u_42").then((data) => {
-      setRecommendations(data);
+
+    popularApi.list().then((data) => {
+      setPopular(data);
+      setPopularLoading(false);
+    });
+  }, []);
+
+  // Carrega recomendações "outros também compraram" (Neo4j) — só se logado
+  useEffect(() => {
+    if (session?.userId) {
+      setRecommendationsLoading(true);
+      recommendationsApi.forUser(session.userId).then((data) => {
+        setRecommendations(data);
+        setRecommendationsLoading(false);
+      });
+    } else {
+      setRecommendations([]);
       setRecommendationsLoading(false);
+    }
+  }, [session?.userId]);
+
+  // Carrega recomendações por categoria quando um produto é selecionado
+  const loadCategoryRecs = useCallback((productId: string) => {
+    setSelectedProductId(productId);
+    setCategoryRecsLoading(true);
+    categoryApi.forProduct(productId).then((data) => {
+      setCategoryRecs(data);
+      setCategoryRecsLoading(false);
     });
   }, []);
 
@@ -82,9 +90,8 @@ export function useStorefront() {
     [products],
   );
 
-  const login = useCallback(async () => {
-    // PostgreSQL transaction
-    const next = await authApi.login("alex@example.com", "demo");
+  const login = useCallback(async (email: string, password: string) => {
+    const next = await authApi.login(email, password);
     setSession(next);
   }, []);
 
@@ -96,13 +103,10 @@ export function useStorefront() {
   }, []);
 
   const addToCart = useCallback((product: Product) => {
-    // Validar se o produto está esgotado
     if ((product.stock ?? 1) === 0) {
       alert("Este produto está esgotado no momento.");
       return;
     }
-
-    // Optimistic update — backend would persist this in Postgres.
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product._id);
       if (existing) {
@@ -110,10 +114,7 @@ export function useStorefront() {
           i.productId === product._id ? { ...i, quantity: i.quantity + 1 } : i,
         );
       }
-      return [
-        ...prev,
-        { productId: product._id, quantity: 1, unitPrice: product.price },
-      ];
+      return [...prev, { productId: product._id, quantity: 1, unitPrice: product.price }];
     });
   }, []);
 
@@ -128,12 +129,8 @@ export function useStorefront() {
       alert("Por favor, faça login para finalizar a compra!");
       return;
     }
-
     try {
-      // Chama a API que criamos na etapa anterior
       await cartApi.checkout(session.userId, cart);
-      
-      // Se deu sucesso, esvazia o carrinho na tela
       setCart([]);
       alert("Compra realizada com sucesso! 🎉");
     } catch (error) {
@@ -143,10 +140,21 @@ export function useStorefront() {
   }, [session, cart]);
 
   return {
+    // Catálogo
     products,
     productsLoading,
+    // Populares
+    popular,
+    popularLoading,
+    // Outros também compraram
     recommendations,
     recommendationsLoading,
+    // Por categoria
+    categoryRecs,
+    categoryRecsLoading,
+    selectedProductId,
+    loadCategoryRecs,
+    // Sessão e carrinho
     session,
     cart,
     cartCount,
