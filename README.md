@@ -14,8 +14,8 @@
 	4.4 Recomendações (Neo4j + MongoDB)  
 5. Lógica do Frontend — `useStorefront`  
 6. Painel Administrativo  
-7. Variáveis de Ambiente  
-8. Fluxo Completo de uma Compra
+7. Fluxo Completo de uma Compra
+8. Rodando a aplicação
 ---
 
 ## 1. Tema Escolhido
