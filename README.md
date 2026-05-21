@@ -1,4 +1,9 @@
 # RotaExpress | Documentação Técnica
+Integrantes
+
+Daniel Barroso de Oliveira	
+
+Kaio Lopes Custódio da Silva
 ## Sumário
 
 1. Tema Escolhido  
