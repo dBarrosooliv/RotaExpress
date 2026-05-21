@@ -1,0 +1,25 @@
+{
+  "name": "ecommercebe",
+  "version": "1.0.0",
+  "description": "BackEnd para integração do bancos",
+  "license": "ISC",
+  "author": "Daniel Barroso",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "test": "echo \"Erro: sem teste especificado. Ver depois\" && exit 1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^9.6.2",
+    "neo4j-driver": "^6.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  },
+  "keywords": []
+}
